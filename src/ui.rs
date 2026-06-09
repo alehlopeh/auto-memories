@@ -83,8 +83,6 @@ fn render_header(f: &mut Frame, app: &App, area: Rect) {
             "MNEMONIC EXTRACTION UNIT",
             Style::default().fg(PHOSPHOR),
         ),
-        Span::styled("  ::  REC ", Style::default().fg(GHOST)),
-        Span::styled("●", Style::default().fg(Color::Rgb(255, 40, 40))),
     ]);
     let sub = Line::from(Span::styled(
         format!("  {total} memories extracted across {projs} projects  —  read-only"),
@@ -128,7 +126,7 @@ fn render_projects(f: &mut Frame, app: &mut App, area: Rect) {
     }
 
     let list = List::new(items)
-        .block(retro_block("DRIVES", focused))
+        .block(retro_block("PROJECTS", focused))
         .highlight_style(
             Style::default()
                 .bg(AMBER)
@@ -145,9 +143,9 @@ fn render_memories(f: &mut Frame, app: &mut App, area: Rect) {
     let show_proj = app.selected_project == 0;
 
     let title = if app.filter.is_empty() {
-        format!("CLIPS [{}]", idxs.len())
+        format!("MEMORIES [{}]", idxs.len())
     } else {
-        format!("CLIPS [{}] /{}", idxs.len(), app.filter)
+        format!("MEMORIES [{}] /{}", idxs.len(), app.filter)
     };
 
     if idxs.is_empty() {
@@ -195,7 +193,7 @@ fn render_detail(f: &mut Frame, app: &mut App, area: Rect) {
     let idxs = app.current_memory_indices();
     let sel = app.mem_state.selected().unwrap_or(0);
 
-    let block = retro_block("PLAYBACK", false);
+    let block = retro_block("DETAIL", false);
 
     let Some(&mi) = idxs.get(sel) else {
         let p = Paragraph::new(Line::from(Span::styled(
