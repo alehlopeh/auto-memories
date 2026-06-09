@@ -213,23 +213,35 @@ fn handle_nav_key(app: &mut App, code: KeyCode) {
         },
 
         // Pane switch.
-        KeyCode::Tab | KeyCode::BackTab => {
+        KeyCode::Tab => {
             app.focus = match app.focus {
                 Focus::Projects => Focus::Memories,
+                Focus::Memories => Focus::Detail,
+                Focus::Detail => Focus::Projects,
+            };
+        }
+        KeyCode::BackTab => {
+            app.focus = match app.focus {
+                Focus::Projects => Focus::Detail,
                 Focus::Memories => Focus::Projects,
+                Focus::Detail => Focus::Memories,
             };
         }
         KeyCode::Left | KeyCode::Char('h') => app.focus = Focus::Projects,
         KeyCode::Right | KeyCode::Char('l') => app.focus = Focus::Memories,
+        KeyCode::Enter if app.focus == Focus::Projects => app.focus = Focus::Memories,
+        KeyCode::Enter if app.focus == Focus::Memories => app.focus = Focus::Detail,
 
         // Vertical movement in the focused pane.
         KeyCode::Down | KeyCode::Char('j') => match app.focus {
             Focus::Projects => app.next_project(),
             Focus::Memories => app.next_memory(),
+            Focus::Detail => app.detail_scroll = app.detail_scroll.saturating_add(1),
         },
         KeyCode::Up | KeyCode::Char('k') => match app.focus {
             Focus::Projects => app.prev_project(),
             Focus::Memories => app.prev_memory(),
+            Focus::Detail => app.detail_scroll = app.detail_scroll.saturating_sub(1),
         },
 
         // Detail scroll.

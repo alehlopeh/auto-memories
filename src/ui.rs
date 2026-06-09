@@ -95,7 +95,7 @@ fn render_header(f: &mut Frame, app: &App, area: Rect) {
         ),
         Span::styled("  ::  ", Style::default().fg(GHOST)),
         Span::styled(
-            "MNEMONIC EXTRACTION UNIT",
+            "CC MNEMONIC MANIPULATION",
             Style::default().fg(PHOSPHOR),
         ),
     ]);
@@ -172,10 +172,11 @@ fn render_memories(f: &mut Frame, app: &mut App, area: Rect) {
     let idxs = app.current_memory_indices();
     let show_proj = app.selected_project == 0;
 
+    let n = real_count(app, &idxs);
     let title = if app.filter.is_empty() {
-        format!("MEMORIES [{}]", idxs.len())
+        format!("MEMORIES [{n}]")
     } else {
-        format!("MEMORIES [{}] /{}", idxs.len(), app.filter)
+        format!("MEMORIES [{n}] /{}", app.filter)
     };
 
     // Block first, then scope-wide stats strip above the list inside it.
@@ -235,33 +236,38 @@ fn render_detail(f: &mut Frame, app: &mut App, area: Rect) {
     let idxs = app.current_memory_indices();
     let sel = app.mem_state.selected().unwrap_or(0);
 
-    let block = retro_block("DETAIL", false);
+    // Render the frame first, then the text inset 2 chars from the left border.
+    let block = retro_block("DETAIL", app.focus == Focus::Detail);
+    let mut pad = block.inner(area);
+    f.render_widget(block, area);
+    pad.x += 2;
+    pad.width = pad.width.saturating_sub(4); // 2 chars padding each side
 
     let Some(&mi) = idxs.get(sel) else {
         let p = Paragraph::new(Line::from(Span::styled(
             "no memory selected",
             Style::default().fg(GHOST),
-        )))
-        .block(block);
-        f.render_widget(p, area);
+        )));
+        f.render_widget(p, pad);
         return;
     };
     let m = &app.library.memories[mi];
 
-    let mut lines: Vec<Line> = Vec::new();
-    lines.push(Line::from(Span::styled(
-        m.name.clone(),
-        Style::default().fg(AMBER).add_modifier(Modifier::BOLD),
-    )));
-    lines.push(Line::from(vec![
-        Span::styled("[", Style::default().fg(GHOST)),
+    let title_spans = vec![
+        Span::styled(
+            m.name.clone(),
+            Style::default().fg(AMBER).add_modifier(Modifier::BOLD),
+        ),
+        Span::styled("  [", Style::default().fg(GHOST)),
         Span::styled(
             m.mtype.clone(),
             Style::default()
                 .fg(type_color(&m.mtype))
                 .add_modifier(Modifier::BOLD),
         ),
-        Span::styled("]  ", Style::default().fg(GHOST)),
+        Span::styled("]", Style::default().fg(GHOST)),
+    ];
+    let meta_spans = vec![
         Span::styled(m.project.clone(), Style::default().fg(DIM)),
         Span::styled(format!("  ·  {}.md", m.slug), Style::default().fg(GHOST)),
         Span::styled(
@@ -271,17 +277,26 @@ fn render_detail(f: &mut Frame, app: &mut App, area: Rect) {
             ),
             Style::default().fg(DIM),
         ),
-    ]));
+    ];
+
+    let mut lines: Vec<Line> = vec![
+        Line::from(""),
+        Line::from(title_spans),
+        Line::from(meta_spans),
+        Line::from(""),
+    ];
     if !m.description.is_empty() {
         lines.push(Line::from(Span::styled(
             m.description.clone(),
             Style::default().fg(PHOSPHOR).add_modifier(Modifier::ITALIC),
         )));
+        lines.push(Line::from(""));
     }
     lines.push(Line::from(Span::styled(
-        "─".repeat(area.width.saturating_sub(4) as usize),
+        "─".repeat(pad.width.saturating_sub(2) as usize),
         Style::default().fg(GHOST),
     )));
+    lines.push(Line::from(""));
     if m.mtype == "index" {
         render_index_body(&app.library, m, &mut lines);
     } else {
@@ -295,7 +310,7 @@ fn render_detail(f: &mut Frame, app: &mut App, area: Rect) {
     // On-disk provenance footer.
     lines.push(Line::from(""));
     lines.push(Line::from(Span::styled(
-        "─".repeat(area.width.saturating_sub(4) as usize),
+        "─".repeat(pad.width.saturating_sub(2) as usize),
         Style::default().fg(GHOST),
     )));
     lines.push(Line::from(Span::styled(
@@ -313,11 +328,11 @@ fn render_detail(f: &mut Frame, app: &mut App, area: Rect) {
         Style::default().fg(GHOST),
     )));
 
-    let p = Paragraph::new(lines)
-        .block(block)
-        .wrap(Wrap { trim: false })
-        .scroll((app.detail_scroll, 0));
-    f.render_widget(p, area);
+    let p = Paragraph::new(lines).wrap(Wrap { trim: false });
+    // Clamp so the last wrapped line stops at the bottom of the pane.
+    let total = p.line_count(pad.width) as u16;
+    app.detail_scroll = app.detail_scroll.min(total.saturating_sub(pad.height));
+    f.render_widget(p.scroll((app.detail_scroll, 0)), pad);
 }
 
 fn render_status(f: &mut Frame, app: &App, area: Rect) {
@@ -447,7 +462,7 @@ fn stats_lines(app: &App, idxs: &[usize], width: u16) -> Vec<Line<'static>> {
 
     let mut counts = vec![
         Span::styled(
-            format!("{} ", mems.len()),
+            format!("  {} ", mems.len()),
             Style::default().fg(AMBER).add_modifier(Modifier::BOLD),
         ),
         Span::styled("· ", Style::default().fg(GHOST)),

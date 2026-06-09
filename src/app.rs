@@ -10,6 +10,7 @@ use crate::memory::{scan, Library, Memory};
 pub enum Focus {
     Projects,
     Memories,
+    Detail,
 }
 
 #[derive(PartialEq, Eq, Clone, Copy)]

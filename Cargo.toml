@@ -1,6 +1,6 @@
 [package]
 name = "auto-memories"
-version = "0.3.1"
+version = "0.4.0"
 edition = "2021"
 
 [[bin]]
@@ -8,6 +8,6 @@ name = "auto-memories"
 path = "src/main.rs"
 
 [dependencies]
-# ratatui 0.29 re-exports a version-matched crossterm via `ratatui::crossterm`,
+# ratatui re-exports a version-matched crossterm via `ratatui::crossterm`,
 # so we depend on it alone to avoid crossterm version skew.
-ratatui = "0.29"
+ratatui = { version = "0.30", features = ["unstable-rendered-line-info"] }
