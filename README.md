@@ -16,8 +16,8 @@ detail (full width)
 curl -sL https://github.com/alehlopeh/auto-memories/releases/latest/download/auto-memories-aarch64-apple-darwin.tar.gz | tar xz
 mv auto-memories-aarch64-apple-darwin/auto-memories ~/bin/
 
-# or build from source
-cargo install --git https://github.com/alehlopeh/auto-memories
+# or build from source (force cargo to fetch via the git CLI)
+CARGO_NET_GIT_FETCH_WITH_CLI=true cargo install --git https://github.com/alehlopeh/auto-memories
 ```
 
 ## Keys
@@ -67,7 +67,7 @@ cargo install --git https://github.com/alehlopeh/auto-memories
 
 ## Notes
 
-- Single dependency: `ratatui` 0.29 (use its re-exported `crossterm`).
+- Single dependency: `ratatui` (use its re-exported `crossterm`).
 - Hand-rolled, lenient frontmatter parser — no serde. Handles flat and `metadata:`-nested `type:`.
 - Project labels are lossy: mangling replaces `/` and `.` with `-`, so `short_label()` is a best-effort `-code-` heuristic, not reversible.
 
