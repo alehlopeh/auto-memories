@@ -49,7 +49,7 @@ pub fn render(f: &mut Frame, app: &mut App) {
         .split(chunks[1]);
     let cols = Layout::default()
         .direction(Direction::Horizontal)
-        .constraints([Constraint::Length(32), Constraint::Min(20)])
+        .constraints([Constraint::Ratio(1, 3), Constraint::Ratio(2, 3)])
         .split(rows[0]);
 
     render_projects(f, app, cols[0]);
