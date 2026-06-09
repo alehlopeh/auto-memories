@@ -1,32 +1,45 @@
 # CLAUDE.md
 
-Read-only ratatui TUI browsing Claude Code auto-memories
-(`~/.claude/projects/*/memory/*.md`). Never add a write path.
+Ratatui TUI for browsing and mutating Claude Code auto-memories
+(`~/.claude/projects/*/memory/*.md`).
 
 ## Modules
 
 - `src/memory.rs` — `scan()` walks the dir → flat `Library`. `parse_str()` is the
-  filesystem-free parser (keep it that way for tests). `MEMORY.md` excluded.
-- `src/app.rs` — `App` state. `current_memory_indices()` is the single place
-  combining selected project + filter; both list and detail render off it.
-  Project index `0` = synthetic "ALL PROJECTS".
-- `src/ui.rs` — rendering + CRT palette, color by `type` via `type_color()`.
-- `src/main.rs` — event loop + key handlers.
+  filesystem-free parser (keep it that way for tests). MEMORY.md is included as
+  type `index` with a fixed identity.
+- `src/mutate.rs` — the only write path. Every mutation: backup first
+  (`~/.claude/auto-memories-backups/`), atomic write (temp + rename), and keep
+  MEMORY.md in sync on insert/delete/move. Keep all new writes behind these rules.
+- `src/app.rs` — `App` state + `Mode` enum (Normal/Filter/ConfirmDelete/NewSlug/
+  MoveProject/PickType). `current_memory_indices()` is the single place combining
+  selected project + filter; ALL view (project index `0`) hides `index` entries.
+- `src/ui.rs` — rendering + CRT palette; `type_color()` per type; stats strip in
+  the memories pane; index bodies parsed via `parse_index_line()`.
+- `src/main.rs` — event loop, per-mode key handlers, `$EDITOR` suspend/resume
+  (`run_editor`: `ratatui::restore()` → spawn → `ratatui::init()`).
 
 ## Conventions
 
 - Single dep: `ratatui` only. Use `ratatui::crossterm`; don't add a direct `crossterm` dep.
-- No serde. Frontmatter parsing is hand-rolled and lenient — keep it tolerant of
-  malformed/missing input, don't make it fail the parse.
-- Keep parsing filesystem-free where possible (`parse_str` model).
+- No serde, no chrono. Frontmatter parsing and date formatting are hand-rolled;
+  keep parsers lenient — tolerate malformed/missing input, never fail the parse.
+- Mutations must go through `mutate.rs` (backup + atomic write + index sync).
+- `index` entries are edit-only: block delete/move/retype on `mtype == "index"`.
 - Scans sort dirs/files for stable ordering — preserve it.
 
 ## Test
 
-`cargo test` (inline in `memory.rs`/`main.rs`). UI tests use `TestBackend`
-headless. Scan tests run against real disk — must tolerate any existing memories.
+`cargo test` — inline `#[cfg(test)]` in every module. UI tests use `TestBackend`
+headless; mutation tests use per-test temp dirs; scan tests run against real
+disk and must tolerate whatever memories exist. TUI behavior is verified
+manually by Alex — don't try to drive the TUI through a pty in CI or locally.
 
 ## Gotchas
 
 - `short_label()` is lossy (`/` and `.` both → `-`); not a reversible decode.
 - Absent `~/.claude/projects` → empty library, not a panic.
+- "created" is file birthtime (APFS), not when the memory was learned; display
+  is UTC since std can't get the local offset.
+- Release: pushing a `v*` tag builds + publishes a macOS arm64 binary
+  (`.github/workflows/release.yml`).
