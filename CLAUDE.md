@@ -35,6 +35,18 @@ headless; mutation tests use per-test temp dirs; scan tests run against real
 disk and must tolerate whatever memories exist. TUI behavior is verified
 manually by Alex — don't try to drive the TUI through a pty in CI or locally.
 
+## Releasing
+
+Every time a change ships (feature or fix), cut a release:
+
+1. Bump `version` in `Cargo.toml` (and let `Cargo.lock` update) — the crate
+   version must stay in lockstep with the tag.
+2. Commit and push.
+3. `git tag vX.Y.Z && git push origin vX.Y.Z` — the tag triggers
+   `.github/workflows/release.yml` (build → verify → publish macOS arm64 tarball).
+4. Watch the run to green (`gh run watch`) and confirm the release asset exists
+   (`gh release view vX.Y.Z`).
+
 ## Gotchas
 
 - `short_label()` is lossy (`/` and `.` both → `-`); not a reversible decode.
