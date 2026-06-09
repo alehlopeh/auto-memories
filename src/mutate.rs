@@ -114,6 +114,22 @@ pub fn move_memory(
     index_append(dst_dir, slug, name, description)
 }
 
+/// Back up and remove every .md (memories + index) in a project's memory dir.
+/// The dir itself goes too once empty; non-md strays keep it alive.
+pub fn delete_project(mem_dir: &Path) -> io::Result<usize> {
+    let mut n = 0;
+    for entry in fs::read_dir(mem_dir)? {
+        let p = entry?.path();
+        if p.extension().and_then(|e| e.to_str()) == Some("md") {
+            backup(&p)?;
+            fs::remove_file(&p)?;
+            n += 1;
+        }
+    }
+    let _ = fs::remove_dir(mem_dir);
+    Ok(n)
+}
+
 /// Rewrite the frontmatter `type:` (flat or nested under `metadata:`) in place.
 pub fn retype(path: &Path, new_type: &str) -> io::Result<()> {
     backup(path)?;
@@ -283,6 +299,28 @@ mod tests {
         retype(&p, "user").unwrap();
         let raw = fs::read_to_string(&p).unwrap();
         assert!(raw.contains("  type: user"));
+        let _ = fs::remove_dir_all(&d);
+    }
+
+    #[test]
+    fn delete_project_clears_md_files() {
+        let d = tdir("delete-project");
+        create_memory(&d, "one").unwrap();
+        create_memory(&d, "two").unwrap();
+        index_append(&d, "one", "One", "").unwrap();
+        let n = delete_project(&d).unwrap();
+        assert_eq!(n, 3); // two memories + MEMORY.md
+        assert!(!d.exists());
+    }
+
+    #[test]
+    fn delete_project_spares_non_md() {
+        let d = tdir("delete-project-stray");
+        create_memory(&d, "one").unwrap();
+        fs::write(d.join("stray.txt"), "keep me").unwrap();
+        delete_project(&d).unwrap();
+        assert!(d.join("stray.txt").exists());
+        assert!(!d.join("one.md").exists());
         let _ = fs::remove_dir_all(&d);
     }
 

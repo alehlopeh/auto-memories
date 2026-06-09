@@ -342,6 +342,22 @@ fn render_status(f: &mut Frame, app: &App, area: Rect) {
                 Span::styled("[y] delete  [esc/n] cancel", Style::default().fg(DIM)),
             ])
         }
+        Mode::ConfirmDeleteProject => {
+            let (label, count) = if app.selected_project > 0 {
+                let p = &app.library.projects[app.selected_project - 1];
+                (p.label.clone(), p.memory_idx.len())
+            } else {
+                (String::new(), 0)
+            };
+            Line::from(vec![
+                Span::styled(" DELETE PROJECT ", Style::default().bg(AMBER).fg(Color::Black)),
+                Span::styled(
+                    format!(" {label} — all {count} files — sure? "),
+                    Style::default().fg(AMBER),
+                ),
+                Span::styled("[y] delete  [esc/n] cancel", Style::default().fg(DIM)),
+            ])
+        }
         Mode::NewSlug => Line::from(vec![
             Span::styled(" NEW ", Style::default().bg(PHOSPHOR).fg(Color::Black)),
             Span::styled(

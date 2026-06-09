@@ -42,6 +42,7 @@ fn run(
             Mode::Normal => handle_nav_key(app, key.code),
             Mode::Filter => handle_filter_key(app, key.code),
             Mode::ConfirmDelete => handle_confirm_key(app, key.code),
+            Mode::ConfirmDeleteProject => handle_confirm_project_key(app, key.code),
             Mode::NewSlug => handle_slug_key(app, key.code),
             Mode::MoveProject => handle_move_key(app, key.code),
             Mode::PickType => handle_type_key(app, key.code),
@@ -172,6 +173,14 @@ fn handle_nav_key(app: &mut App, code: KeyCode) {
                 app.input.clear();
             }
         }
+        // In the projects pane `d` targets the whole project.
+        KeyCode::Char('d') if app.focus == Focus::Projects => {
+            if app.selected_project == 0 {
+                app.status = Some("select a project, not ALL".to_string());
+            } else {
+                app.mode = Mode::ConfirmDeleteProject;
+            }
+        }
         KeyCode::Char('d') => match app.selected_memory() {
             Some(m) if m.mtype == "index" => {
                 app.status = Some("the index can only be edited".to_string());
@@ -241,6 +250,20 @@ fn handle_confirm_key(app: &mut App, code: KeyCode) {
             }
             app.rescan();
         }
+    }
+    app.mode = Mode::Normal;
+}
+
+/// y/n on the delete-whole-project prompt.
+fn handle_confirm_project_key(app: &mut App, code: KeyCode) {
+    if code == KeyCode::Char('y') && app.selected_project > 0 {
+        let p = &app.library.projects[app.selected_project - 1];
+        let label = p.label.clone();
+        match mutate::delete_project(&p.mem_dir) {
+            Ok(n) => app.status = Some(format!("deleted {label}: {n} files (backed up)")),
+            Err(e) => app.status = Some(format!("delete failed: {e}")),
+        }
+        app.rescan();
     }
     app.mode = Mode::Normal;
 }
@@ -375,6 +398,7 @@ mod tests {
 
         for mode in [
             Mode::ConfirmDelete,
+            Mode::ConfirmDeleteProject,
             Mode::NewSlug,
             Mode::MoveProject,
             Mode::PickType,

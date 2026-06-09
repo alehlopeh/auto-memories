@@ -31,7 +31,7 @@ cargo install --git https://github.com/alehlopeh/auto-memories
 | `Esc` | Clear filter / cancel prompt |
 | `e` | Edit in `$EDITOR` |
 | `n` | New memory (asks for slug; needs a project selected) |
-| `d` | Delete (with confirm) |
+| `d` | Delete memory — or the whole project when the projects pane is focused (with confirm) |
 | `m` | Move to another project |
 | `t` | Change type (user/feedback/project/reference) |
 | `r` | Re-scan |

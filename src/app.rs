@@ -17,6 +17,7 @@ pub enum Mode {
     Normal,
     Filter,
     ConfirmDelete,
+    ConfirmDeleteProject,
     NewSlug,
     MoveProject,
     PickType,
