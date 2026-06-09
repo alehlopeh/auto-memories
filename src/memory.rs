@@ -2,7 +2,7 @@
 //!
 //! Layout on disk:
 //!   ~/.claude/projects/<mangled-project-path>/memory/
-//!     ├── MEMORY.md     # human-curated index — NOT a memory, excluded here
+//!     ├── MEMORY.md     # human-curated index — surfaced with type `index`
 //!     └── <slug>.md     # one atomic memory each, with YAML-ish frontmatter
 
 use std::fs;
@@ -19,11 +19,14 @@ pub struct Memory {
     pub description: String,  // frontmatter `description`
     pub mtype: String,        // frontmatter `type` (or metadata.type); "?" if absent
     pub body: String,         // markdown after the frontmatter block
+    pub created: Option<u64>, // file birthtime, unix secs (None if fs lacks it)
+    pub modified: Option<u64>, // file mtime, unix secs
 }
 
 /// A project that owns one or more memories.
 pub struct Project {
     pub label: String,        // best-effort short name
+    pub mem_dir: PathBuf,     // the project's memory directory
     pub memory_idx: Vec<usize>, // indices into the flat memory vec
 }
 
@@ -73,19 +76,26 @@ pub fn scan() -> Library {
             .flatten()
             .map(|e| e.path())
             .filter(|p| p.extension().and_then(|e| e.to_str()) == Some("md"))
-            .filter(|p| {
-                // Exclude the index; it is not an atomic memory.
-                !p.file_name()
-                    .and_then(|n| n.to_str())
-                    .map(|n| n.eq_ignore_ascii_case("MEMORY.md"))
-                    .unwrap_or(false)
-            })
             .collect();
         md_files.sort();
 
         let mut idxs = Vec::new();
         for path in md_files {
-            if let Some(mem) = parse_memory(&path, &label, &dir_name) {
+            let is_index = path
+                .file_name()
+                .and_then(|n| n.to_str())
+                .map(|n| n.eq_ignore_ascii_case("MEMORY.md"))
+                .unwrap_or(false);
+            if let Some(mut mem) = parse_file(&path, &label, &dir_name) {
+                if is_index {
+                    // The index gets a fixed identity; mutations other than
+                    // edit are blocked on type == "index".
+                    mem.name = "MEMORY.md".to_string();
+                    mem.mtype = "index".to_string();
+                    if mem.description.is_empty() {
+                        mem.description = "project memory index".to_string();
+                    }
+                }
                 idxs.push(memories.len());
                 memories.push(mem);
             }
@@ -94,6 +104,7 @@ pub fn scan() -> Library {
         if !idxs.is_empty() {
             projects.push(Project {
                 label,
+                mem_dir,
                 memory_idx: idxs,
             });
         }
@@ -117,14 +128,25 @@ fn short_label(dir: &str) -> String {
 }
 
 /// Parse one memory file. Returns None only if the file can't be read.
-fn parse_memory(path: &Path, project: &str, project_dir: &str) -> Option<Memory> {
+pub fn parse_file(path: &Path, project: &str, project_dir: &str) -> Option<Memory> {
     let raw = fs::read_to_string(path).ok()?;
     let slug = path
         .file_stem()
         .and_then(|s| s.to_str())
         .unwrap_or("")
         .to_string();
-    Some(parse_str(&raw, &slug, project, project_dir, path.to_path_buf()))
+    let mut mem = parse_str(&raw, &slug, project, project_dir, path.to_path_buf());
+    if let Ok(meta) = fs::metadata(path) {
+        mem.created = meta.created().ok().and_then(unix_secs);
+        mem.modified = meta.modified().ok().and_then(unix_secs);
+    }
+    Some(mem)
+}
+
+fn unix_secs(t: std::time::SystemTime) -> Option<u64> {
+    t.duration_since(std::time::UNIX_EPOCH)
+        .ok()
+        .map(|d| d.as_secs())
 }
 
 /// Core parse: frontmatter + body -> Memory. Filesystem-free so it is unit-testable.
@@ -185,6 +207,8 @@ fn parse_str(raw: &str, slug: &str, project: &str, project_dir: &str, path: Path
         description,
         mtype,
         body: body.trim().to_string(),
+        created: None,
+        modified: None,
     }
 }
 
@@ -241,9 +265,11 @@ mod tests {
                 assert!(i < lib.memories.len());
             }
         }
-        // No memory should be the index file.
+        // Index files are included but always tagged as type "index".
         for m in &lib.memories {
-            assert_ne!(m.slug.to_lowercase(), "memory");
+            if m.slug.eq_ignore_ascii_case("memory") {
+                assert_eq!(m.mtype, "index");
+            }
         }
     }
 }
