@@ -34,6 +34,7 @@ cargo install --git https://github.com/alehlopeh/auto-memories
 | `d` | Delete memory — or the whole project when the projects pane is focused (with confirm) |
 | `m` | Move to another project |
 | `t` | Change type (user/feedback/project/reference) |
+| `o` | Reveal memory file in Finder — or open the project's memory dir when the projects pane is focused |
 | `r` | Re-scan |
 | `q` | Quit |
 

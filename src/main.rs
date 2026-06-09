@@ -103,6 +103,20 @@ fn run_editor(
     Ok(())
 }
 
+/// Hand a path to Finder: `open <dir>` for a directory, `open -R <file>` to
+/// reveal a file. macOS-only, like the rest of the release pipeline.
+fn open_in_finder(app: &mut App, path: &std::path::Path, reveal: bool) {
+    let mut cmd = Command::new("open");
+    if reveal {
+        cmd.arg("-R");
+    }
+    match cmd.arg(path).status() {
+        Ok(s) if s.success() => app.status = Some(format!("opened {}", path.display())),
+        Ok(_) => app.status = Some("open exited non-zero".to_string()),
+        Err(e) => app.status = Some(format!("open failed: {e}")),
+    }
+}
+
 /// A freshly created memory gets its pointer line appended to MEMORY.md.
 fn finish_new_memory(app: &mut App, req: &EditorRequest) {
     if !req.path.exists() {
@@ -211,6 +225,22 @@ fn handle_nav_key(app: &mut App, code: KeyCode) {
             }
             None => {}
         },
+
+        // In the projects pane `o` opens the memory dir in Finder;
+        // elsewhere it reveals the selected memory's file.
+        KeyCode::Char('o') if app.focus == Focus::Projects => {
+            if app.selected_project == 0 {
+                app.status = Some("select a project, not ALL".to_string());
+            } else {
+                let dir = app.library.projects[app.selected_project - 1].mem_dir.clone();
+                open_in_finder(app, &dir, false);
+            }
+        }
+        KeyCode::Char('o') => {
+            if let Some(m) = app.selected_memory() {
+                open_in_finder(app, &m.path, true);
+            }
+        }
 
         // Pane switch.
         KeyCode::Tab => {

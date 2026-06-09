@@ -440,6 +440,8 @@ fn render_status(f: &mut Frame, app: &App, area: Rect) {
                     sep("move"),
                     key("t"),
                     sep("type"),
+                    key("o"),
+                    sep("finder"),
                     key("r"),
                     sep("rescan"),
                     key("q"),
